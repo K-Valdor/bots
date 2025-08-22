@@ -1,8 +1,10 @@
 __pycache__/
 *.pyc
 .venv/
+bots/.env
 .env
 *.log
+bots/backups/
 backups/
 .env.local
 .env.*.local

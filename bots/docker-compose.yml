@@ -1,0 +1,54 @@
+services:
+  db:
+    image: postgres:16
+    container_name: bots_db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-bot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bot}
+      POSTGRES_DB: ${POSTGRES_DB:-bot}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-bot} -d ${POSTGRES_DB:-bot}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  bot:
+    build: .
+    container_name: bots_aiogram
+    env_file:
+      - .env
+    environment:
+      BOT_TOKEN: ${BOT_TOKEN:-}
+      APP_VERSION: ${APP_VERSION:-0.1.0}
+      POSTGRES_DSN: "${POSTGRES_DSN:-postgresql://${POSTGRES_USER:-bot}:${POSTGRES_PASSWORD:-bot}@db:5432/${POSTGRES_DB:-bot}}"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  backup:
+    image: prodrigestivill/postgres-backup-local:16
+    container_name: bots_pg_backup
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_DB: ${POSTGRES_DB:-bot}
+      POSTGRES_USER: ${POSTGRES_USER:-bot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bot}
+      SCHEDULE: "0 3 * * *"
+      BACKUP_KEEP_DAYS: 7
+      BACKUP_KEEP_WEEKS: 4
+      BACKUP_KEEP_MONTHS: 6
+      BACKUP_DIR: /backups
+    volumes:
+      - db_backups:/backups
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  db_backups:
